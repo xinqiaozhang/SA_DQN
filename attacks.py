@@ -14,7 +14,7 @@ Variable = lambda *args, **kwargs: autograd.Variable(*args, **kwargs).cuda() if 
 
 CARTPOLE_STD=[0.7322321, 1.0629482, 0.12236707, 0.43851405]
 ACROBOT_STD=[0.36641926, 0.65119815, 0.6835106, 0.67652863, 2.0165246, 3.0202584]
-
+torch.manual_seed(42)
 
 
 def pgd(model, X, y, verbose=False, params={}, env_id=""):
@@ -83,6 +83,30 @@ def fgsm(model, X, y, verbose=False, params={}):
     X_adv.data = torch.clamp(X_adv.data, img_min, img_max)
     return X_adv.data
 
+def fake_attack(model, X, y, verbose=False, params={}):
+    X_adv = Variable(X.data)
+    return X_adv.data
+
+def fixed_attack(model, X, y, verbose=False, params={}):
+    epsilon=params.get('epsilon', 1)
+    img_min=params.get('img_min', 0.0)
+    img_max=params.get('img_max', 1.0)
+    X_adv = Variable(X.data)
+    mean = 0.05
+    std_dev = 0.03
+    noise = torch.normal(mean, std_dev, size=X_adv.size()).clamp(0, 0.1)
+    X_noisy = X_adv + noise
+
+    # X_adv = Variable(X.data, requires_grad=True)
+    # logits = model.forward(X_adv)
+    # loss = F.nll_loss(logits, y)
+    # model.features.zero_grad()
+    # loss.backward()
+    # eta = epsilon*X_adv.grad.data.sign()
+    # X_adv = Variable(X_adv.data + eta, requires_grad=True)
+    # X_adv.data = torch.clamp(X_adv.data, img_min, img_max)
+    return X_noisy.data
+
 
 def cw(model, X, y, verbose=False, params={}):
     C=params.get('C', 0.0001)
@@ -113,17 +137,24 @@ def cw(model, X, y, verbose=False, params={}):
 
 
 def attack(model, X, attack_config, loss_func=nn.CrossEntropyLoss()):
-    method = attack_config.get('method', 'pgd')
+    method = attack_config.get('method', 'fake')
     verbose = attack_config.get('verbose', False)
     params = attack_config.get('params', {})
     params['loss_func'] = loss_func
     y = model.act(X)
+    # print("method is ", method)
     if method == 'cw':
         atk = cw
     elif method == 'fgsm':
         atk = fgsm
-    else:
+    elif method == 'pgd':
         atk = pgd
+    elif method == 'fake':
+        atk = fake_attack
+    elif method == 'fix':
+        atk = fixed_attack
+    else:
+        raise ValueError('Unknown attack method: {}'.format(method))
     adv_X = atk(model, X, y, verbose=verbose, params=params)
     abs_diff = abs(adv_X.cpu().numpy()-X.cpu().numpy())
     if verbose:

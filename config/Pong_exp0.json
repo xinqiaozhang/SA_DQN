@@ -1,0 +1,13 @@
+{
+    "env_id": "PongNoFrameskip-v4",
+    "training_config": {
+        "robust": false,
+        "attack_config": {
+            "params": {
+                "niters": 10
+            },
+            "method": "fake"
+        }
+    },
+    "path_prefix": "/data/xinqiao/SA_DQN/exp0/"
+}

@@ -6,5 +6,6 @@
             "restrict_actions": 4
         },
         "robust": false
-    }
+    },
+    "path_prefix": "/data/xinqiao/SA_DQN/nat/"
 }

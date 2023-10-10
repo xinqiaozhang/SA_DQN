@@ -1,4 +1,5 @@
 import sys
+import pdb
 sys.path.append("./common")
 sys.path.append("./auto_LiRPA")
 from auto_LiRPA import BoundedModule, BoundedTensor
@@ -364,6 +365,7 @@ def main(args):
     adv_train = training_config.get('adv_train', False)
     bound_solver = training_config.get('bound_solver', 'cov')
     attack_config = {}
+    attack_config = training_config["attack_config"]
     if adv_train or bound_solver == 'pgd':
         test_config = config['test_config']
         attack_config = training_config["attack_config"]
@@ -510,9 +512,9 @@ def main(args):
     weights_norm = np.nan
     best_test_reward = -float('inf')
     buffer_stored_size = 0
-    if adv_train:
-        attack_count = 0
-        suc_count = 0
+    # if adv_train:
+    attack_count = 0
+    suc_count = 0
     if robust and bound_solver == 'pgd':
         ori_margin, adv_margin = np.nan, np.nan
 
@@ -530,26 +532,27 @@ def main(args):
             eps = epsilon_scheduler.get_eps(frame_idx, 0)
 
         act_epsilon = act_epsilon_scheduler.get(frame_idx)
-        if adv_train and eps != np.nan and eps >= np.finfo(np.float32).tiny:
-            ori_state_tensor = torch.from_numpy(np.ascontiguousarray(state)).unsqueeze(0).cuda().to(torch.float32)
-            if dtype in UINTS:
-                ori_state_tensor /= 255
-            attack_config['params']['epsilon'] = eps
-            if random.random() < adv_ratio:
-                attack_count += 1
-                state_tensor = attack(current_model, ori_state_tensor, attack_config)
-                if current_model.act(state_tensor)[0] != current_model.act(ori_state_tensor)[0]:
-                    suc_count += 1
-            else:
-                state_tensor = ori_state_tensor
-            action = current_model.act(state_tensor, act_epsilon)[0]
-        else:
-            with torch.no_grad():
-                state_tensor = torch.from_numpy(np.ascontiguousarray(state)).unsqueeze(0).cuda().to(torch.float32)
-                if dtype in UINTS:
-                    state_tensor /= 255
-                ori_state_tensor = torch.clone(state_tensor)
-                action = current_model.act(state_tensor, act_epsilon)[0]
+        # if adv_train and eps != np.nan and eps >= np.finfo(np.float32).tiny:
+        ori_state_tensor = torch.from_numpy(np.ascontiguousarray(state)).unsqueeze(0).cuda().to(torch.float32)
+        if dtype in UINTS:
+            ori_state_tensor /= 255
+        # pdb.set_trace()
+        attack_config['params']['epsilon'] = eps
+        # if random.random() < adv_ratio:
+        attack_count += 1
+        state_tensor = attack(current_model, ori_state_tensor, attack_config)
+        if current_model.act(state_tensor)[0] != current_model.act(ori_state_tensor)[0]:
+            suc_count += 1
+        # else:
+        #     state_tensor = ori_state_tensor
+        action = current_model.act(state_tensor, act_epsilon)[0]
+        # else:
+        #     with torch.no_grad():
+        #         state_tensor = torch.from_numpy(np.ascontiguousarray(state)).unsqueeze(0).cuda().to(torch.float32)
+        #         if dtype in UINTS:
+        #             state_tensor /= 255
+        #         ori_state_tensor = torch.clone(state_tensor)
+        #         action = current_model.act(state_tensor, act_epsilon)[0]
 
         # torch.cuda.synchronize()
         log_time('act_time', time.time() - t)
